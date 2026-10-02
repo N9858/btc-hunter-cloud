@@ -1,31 +1,37 @@
 import requests, time, threading
 from flask import Flask
-
-BOT_TOKEN = "8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14" # Nee original token pettu
-CHAT_ID = "5066142970"      # Nee original id pettu
-
 app = Flask(__name__)
 @app.route('/')
 def home(): return "LIVE"
 
+BOT_TOKEN = "8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14"
+CHAT_ID = "5066142970"
+
 def tg(m):
-    try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id":CHAT_ID,"text":m,"parse_mode":"Markdown"})
-    except: pass
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, json={"chat_id": CHAT_ID, "text": m})
 
 def loop():
-    tg("✅ *BTC Hunter Pro Started!*\nTracking with Target/SL/No Trade Zone... Testing every 3 mins! 🚀")
+    tg("✅ Bot Restarted! Price test start ayindi...")
+    time.sleep(5)
     while True:
         try:
-            t=requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT",timeout=10).json()
-            price=float(t['lastPrice']); change=float(t['priceChangePercent'])
-            if change>0.5:
-                tg(f"🟢 *BUY* 🟢\nEntry: ${price:,.2f}\nTarget: ${price*1.02:,.2f}\nSL: ${price*0.99:,.2f}\nChange: {change:.2f}%")
-            elif change<-0.5:
-                tg(f"🔴 *SELL* 🔴\nEntry: ${price:,.2f}\nTarget: ${price*0.98:,.2f}\nSL: ${price*1.01:,.2f}\nChange: {change:.2f}%")
+            # CoinGecko - 100% working
+            r = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true", timeout=15).json()
+            price = r['bitcoin']['usd']
+            change = r['bitcoin']['usd_24h_change']
+            
+            if change > 1:
+                msg = f"🟢 BUY SIGNAL\n\nPrice: ${price:,.2f}\nTarget: ${price*1.02:,.2f} (+2%)\nStoploss: ${price*0.99:,.2f}\n24h: {change:.2f}%"
+            elif change < -1:
+                msg = f"🔴 SELL SIGNAL\n\nPrice: ${price:,.2f}\nTarget: ${price*0.98:,.2f} (-2%)\nStoploss: ${price*1.01:,.2f}\n24h: {change:.2f}%"
             else:
-                tg(f"⚠️ *NO TRADE ZONE* ⚠️\nPrice: ${price:,.2f}\nReason: Sideways ({change:.2f}%)\nSupport: ${price*0.99:,.2f}\nResistance: ${price*1.01:,.2f}\n_Waiting for clear trend..._")
-        except Exception as e: print(e)
+                msg = f"⚠️ NO TRADE ZONE\n\nPrice: ${price:,.2f}\nSupport: ${price*0.99:,.2f}\nResistance: ${price*1.01:,.2f}\nReason: Sideways ({change:.2f}%)\n\nWaiting..."
+            tg(msg)
+        except Exception as e:
+            tg(f"Error: {e}")
         time.sleep(180)
 
-threading.Thread(target=loop,daemon=True).start()
-if __name__=="__main__": app.run(host="0.0.0.0",port=10000)
+threading.Thread(target=loop, daemon=True).start()
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
