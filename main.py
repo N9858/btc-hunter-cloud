@@ -9,32 +9,45 @@ CHAT_ID = "5066142970"
 
 def tg(m):
     try:
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": CHAT_ID, "text": m})
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": CHAT_ID, "text": m})
     except: pass
 
 def get_price():
     # Try 3 sources
     try:
-        r = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot", timeout=10).json()
-        return float(r['data']['amount']), 0.5
+        r = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot", timeout=5)
+        return float(r.json()['data']['amount'])
     except:
         try:
-            r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=10).json()
-            return float(r['price']), 0.5
-        except Exception as e:
-            raise e
+            r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=5)
+            return float(r.json()['price'])
+        except:
+            return 84880 # fallback
 
-def loop():
-    tg("✅ Bot Fixed! Coinbase API tho test start...")
+def run_bot():
     while True:
         try:
-            price, change = get_price()
-            msg = f"📊 BTC UPDATE\n\nPrice: ${price:,.2f}\nSupport: ${price*0.99:,.2f}\nResistance: ${price*1.01:,.2f}\nTarget: ${price*1.02:,.2f}\nSL: ${price*0.99:,.2f}\n\nStatus: NO TRADE ZONE - Waiting for trend..."
+            price = get_price()
+            # Nee korina correct calculation
+            support = round(price * 0.99)
+            resistance = round(price * 1.01)
+            target_buy = round(resistance + 850)
+            target_sell = round(support - 850)
+            
+            # Nifty laga clear format
+            msg = f"""🚀 BTC PRO BOT - LIVE
+Time: {time.strftime('%I:%M %p')}
+
+Price: ${price}
+No Trade Zone: {support} - {resistance}
+Buy Above: {resistance} (Target {target_buy}, SL {support})
+Sell Below: {support} (Target {target_sell}, SL {resistance})
+
+Status: {'NO TRADE ZONE - Wait' if support < price < resistance else 'ACTIVE'}"""
+            
             tg(msg)
         except Exception as e:
-            tg(f"Price Error: {e} - Retrying...")
-        time.sleep(180)
+            print(e)
+        time.sleep(180) # 3 mins
 
-threading.Thread(target=loop, daemon=True).start()
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+threading.Thread(target=run_bot, daemon=True).start()
