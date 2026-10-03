@@ -6,51 +6,41 @@ CHAT_ID = os.getenv("5066142970")
 
 last_trend = ""
 
-def send(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": text}, timeout=15)
+def send(msg):
+    try:
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
+    except: pass
 
-print("Bot Started - Clean Version")
+print("BOT STARTED - NO SPAM VERSION")
 
 while True:
     try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=10).json()
-        price = float(r['price'])
+        price = float(requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=10).json()['price'])
     except:
-        price = 84600.0
+        price = 84500
 
-    BUY_LEVEL = 85500
-    SELL_LEVEL = 83500
     now = datetime.now().strftime("%I:%M %p IST - %d %b")
-
-    if price > BUY_LEVEL:
-        curr = "BULLISH"
-        setup = f"BUY SETUP ONLY:\nBreakout Level: {BUY_LEVEL}\nTarget: {BUY_LEVEL+850}\nSL: {BUY_LEVEL-1500}"
-        status = "Wait for BUY breakout - Level cross ayyaka BUY"
-        icon = "📈 UP"
-    elif price < SELL_LEVEL:
-        curr = "BEARISH"
-        setup = f"SELL SETUP ONLY:\nBreakdown Level: {SELL_LEVEL}\nTarget: {SELL_LEVEL-850}\nSL: {SELL_LEVEL+1500}"
-        status = "Wait for SELL breakdown - Level cross ayyaka SELL"
-        icon = "📉 DOWN"
+    
+    if price < 83700:
+        trend = "BEARISH"
+        setup = f"SELL BREAKDOWN CONFIRMED\nSell Below: 83700\nTarget: 82800\nSL: 85400"
+        status = "SELL NOW - Breakdown Done"
+    elif price > 85500:
+        trend = "BULLISH"
+        setup = f"BUY BREAKOUT CONFIRMED\nBuy Above: 85500\nTarget: 86400\nSL: 84000"
+        status = "BUY NOW - Breakout Done"
     else:
-        curr = "SIDEWAYS"
-        setup = f"NO TRADE ZONE:\nRange: {SELL_LEVEL} - {BUY_LEVEL}\nPrice middle lo undi"
-        status = "NO TRADE - Wait for Breakout"
-        icon = "⚪ SIDEWAYS"
+        trend = "SIDEWAYS"
+        setup = f"NO TRADE ZONE\nRange: 83700 - 85500\nMiddle lo undi"
+        status = "WAIT FOR BREAKOUT - Ippudu entry vaddu"
 
-    if curr != last_trend:
-        msg = f"""BTC PRO BOT - LIVE
-Time: {now}
-Price: ${price} {icon}
-Trend: {curr}
-
-{setup}
-Status: {status}
-"""
+    # OKKA SARU TREND MARITHE NE MESSAGE - SPAM LEDU
+    if trend != last_trend:
+        msg = f"BTC PRO BOT - LIVE\nTime: {now}\nPrice: ${price} {trend}\n\n{setup}\nStatus: {status}"
         send(msg)
-        last_trend = curr
+        last_trend = trend
+        print(f"SENT: {trend}")
     else:
-        print(f"SKIP: {curr}")
+        print(f"SKIP: {trend} - same trend kabatti message ledu")
 
-    time.sleep(1800)
+    time.sleep(1800) # 30 mins ki okasari check
