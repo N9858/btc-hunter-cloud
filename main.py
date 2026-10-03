@@ -28,6 +28,8 @@ def run_bot():
             if price >= mid:
                 tgt=round(resistance+850)
                 msg=f"""🚀 BTC PRO BOT - LIVE
+                send_interval = 14400  # 4 hours ki okasari matrame
+last_trend = ""  # trend marithe ne pampadaniki
 Time: {t}
 Price: ${price} 📈 UP
 Trend: BULLISH - Market Up
