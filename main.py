@@ -1,66 +1,47 @@
-import time
-import requests
+import os, time, requests
+from datetime import datetime
 
-BOT_TOKEN = "8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14"
-CHAT_ID = "5066142970"
+BOT_TOKEN = os.getenv("8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14")
+CHAT_ID = os.getenv("5066142970")
 
 last_trend = ""
-last_price = 0
 
-def send(msg):
+def send(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-
-def get_btc_price():
-    # Nee existing price logic
-    r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").json()
-    return float(r['price'])
+    requests.post(url, data={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"})
 
 while True:
+    # Live BTC price
     try:
-        price = get_btc_price()
-        now = time.strftime("%I:%M %p IST - %d %b")
+        r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=10).json()
+        price = float(r['price'])
+    except:
+        price = 84639.0
 
-        # --- FIXED LEVELS - Rojuki okasari calculate ---
-        buy_entry = round(price + 1000)  # Example - Nee logic pettu
-        sell_entry = round(price - 1000)
-        no_trade_high = buy_entry
-        no_trade_low = sell_entry
-        
-        buy_target = buy_entry + 1300
-        buy_sl = buy_entry - 1000
-        
-        sell_target = sell_entry - 1300
-        sell_sl = sell_entry + 1000
+    BUY_LEVEL = 85500
+    SELL_LEVEL = 83500
+    now = datetime.now().strftime("%I:%M %p IST - %d %b")
 
-        # --- TREND DECIDE ---
-        if price > buy_entry:
-            current_trend = "BULLISH"
-            setup = f"🟢 BUY SETUP:\nBuy Above: {buy_entry}\nTarget: {buy_target}\nSL: {buy_sl}"
-        elif price < sell_entry:
-            current_trend = "BEARISH"
-            setup = f"🔴 SELL SETUP:\nSell Below: {sell_entry}\nTarget: {sell_target}\nSL: {sell_sl}"
-        else:
-            current_trend = "SIDEWAYS"
-            setup = f"⚪ NO TRADE ZONE:\n{no_trade_low} - {no_trade_high}\nPrice madhya lo unte WAIT"
+    if price > BUY_LEVEL:
+        curr = "BULLISH"
+        body = f"🟢 *BUY SETUP ONLY:*\nBuy Above: {BUY_LEVEL}\nTarget: {BUY_LEVEL+850}\nSL: {BUY_LEVEL-1500}"
+        status = "Wait for BUY breakout"
+        icon = "📈 UP"
+    elif price < SELL_LEVEL:
+        curr = "BEARISH"
+        body = f"🔴 *SELL SETUP ONLY:*\nSell Below: {SELL_LEVEL}\nTarget: {SELL_LEVEL-850}\nSL: {SELL_LEVEL+1500}"
+        status = "Wait for SELL breakdown"
+        icon = "📉 DOWN"
+    else:
+        curr = "SIDEWAYS"
+        body = f"⚪ *NO TRADE ZONE:*\nRange: {SELL_LEVEL} - {BUY_LEVEL}\nPrice middle lo undi - WAIT"
+        status = "NO TRADE"
+        icon = "➡️ SIDEWAYS"
 
-        # --- MAIN FIX: Trend marithe tappa message pampadu ---
-        if current_trend != last_trend:
-            msg = f"""🔥 BTC PRO BOT - DAILY PLAN
-Time: {now}
-Price: ${price}
+    global last_trend
+    if curr != last_trend:
+        msg = f"🚀 *BTC PRO BOT - LIVE*\nTime: {now}\nPrice: ${price} {icon}\nTrend: {curr}\n\n{body}\nStatus: {status}"
+        send(msg)
+        last_trend = curr
 
-{setup}
-
-Status: {current_trend} - No Trade Zone lo unte trade vaddu"""
-            send(msg)
-            last_trend = current_trend
-            print("Message sent - Trend changed:", current_trend)
-        else:
-            print(f"No change - {current_trend} - {now} - Waiting...")
-
-        time.sleep(1800)  # 30 mins ki okasari check - 5 mins kadu
-
-    except Exception as e:
-        print(e)
-        time.sleep(60)
+    time.sleep(1800)  # 30 mins ki okasari check
