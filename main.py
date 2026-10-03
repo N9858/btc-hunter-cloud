@@ -1,60 +1,66 @@
-import requests, time, threading, os
-from flask import Flask
-from datetime import datetime, timezone, timedelta
-app = Flask(__name__)
-@app.route('/')
-def home(): return "LIVE"
-BOT_TOKEN="8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14"
-CHAT_ID="5066142970"
-def tg(m):
-    try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id":CHAT_ID,"text":m}, timeout=10)
-    except: pass
-def get_price():
+import time
+import requests
+
+BOT_TOKEN = "8802132310:AAFWkkr9V06Yq-B4hiB6QTG--2JBpgXVE14"
+CHAT_ID = "5066142970"
+
+last_trend = ""
+last_price = 0
+
+def send(msg):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+
+def get_btc_price():
+    # Nee existing price logic
+    r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").json()
+    return float(r['price'])
+
+while True:
     try:
-        r=requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot",timeout=5)
-        return float(r.json()['data']['amount'])
-    except:
-        r=requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",timeout=5)
-        return float(r.json()['price'])
-def run_bot():
-    while True:
-        try:
-            price=get_price()
-            support=round(price*0.99)
-            resistance=round(price*1.01)
-            mid=(support+resistance)/2
-            ist=datetime.now(timezone.utc)+timedelta(hours=5,minutes=30)
-            t=ist.strftime('%I:%M %p IST - %d %b')
-            if price >= mid:
-                tgt=round(resistance+850)
-                msg=f"""🚀 BTC PRO BOT - LIVE
-                send_interval = 14400  # 4 hours ki okasari matrame
-last_trend = ""  # trend marithe ne pampadaniki
-Time: {t}
-Price: ${price} 📈 UP
-Trend: BULLISH - Market Up
+        price = get_btc_price()
+        now = time.strftime("%I:%M %p IST - %d %b")
 
-BUY SETUP ONLY:
-Buy Above: {resistance}
-Target: {tgt}
-SL: {support}
-Status: Wait for BUY breakout"""
-            else:
-                tgt=round(support-850)
-                msg=f"""🔻 BTC PRO BOT - LIVE
-Time: {t}
-Price: ${price} 📉 DOWN
-Trend: BEARISH - Market Down
+        # --- FIXED LEVELS - Rojuki okasari calculate ---
+        buy_entry = round(price + 1000)  # Example - Nee logic pettu
+        sell_entry = round(price - 1000)
+        no_trade_high = buy_entry
+        no_trade_low = sell_entry
+        
+        buy_target = buy_entry + 1300
+        buy_sl = buy_entry - 1000
+        
+        sell_target = sell_entry - 1300
+        sell_sl = sell_entry + 1000
 
-SELL SETUP ONLY:
-Sell Below: {support}
-Target: {tgt}
-SL: {resistance}
-Status: Wait for SELL breakdown"""
-            tg(msg)
-        except Exception as e: print(e)
-        time.sleep(180)
-threading.Thread(target=run_bot,daemon=True).start()
-if __name__=="__main__":
-    port=int(os.environ.get("PORT",10000))
-    app.run(host="0.0.0.0",port=port)
+        # --- TREND DECIDE ---
+        if price > buy_entry:
+            current_trend = "BULLISH"
+            setup = f"🟢 BUY SETUP:\nBuy Above: {buy_entry}\nTarget: {buy_target}\nSL: {buy_sl}"
+        elif price < sell_entry:
+            current_trend = "BEARISH"
+            setup = f"🔴 SELL SETUP:\nSell Below: {sell_entry}\nTarget: {sell_target}\nSL: {sell_sl}"
+        else:
+            current_trend = "SIDEWAYS"
+            setup = f"⚪ NO TRADE ZONE:\n{no_trade_low} - {no_trade_high}\nPrice madhya lo unte WAIT"
+
+        # --- MAIN FIX: Trend marithe tappa message pampadu ---
+        if current_trend != last_trend:
+            msg = f"""🔥 BTC PRO BOT - DAILY PLAN
+Time: {now}
+Price: ${price}
+
+{setup}
+
+Status: {current_trend} - No Trade Zone lo unte trade vaddu"""
+            send(msg)
+            last_trend = current_trend
+            print("Message sent - Trend changed:", current_trend)
+        else:
+            print(f"No change - {current_trend} - {now} - Waiting...")
+
+        time.sleep(1800)  # 30 mins ki okasari check - 5 mins kadu
+
+    except Exception as e:
+        print(e)
+        time.sleep(60)
